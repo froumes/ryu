@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local GuiService = game:GetService("GuiService")
 
 -- Function to check if we have a current job
 local function hasNoCurrentJob()
@@ -13,36 +14,32 @@ end
 local function checkAndHandleATMInteraction()
     if hasEnoughCash() then
         print("=== Found ₩1,000,000 - Running ATM Interaction ===")
-        wait (10)
+        wait (3)
         
         local function handleATMInteraction()
             local vim = game:GetService("VirtualInputManager")
             
-            -- Press Backslash, S, S, and Enter in sequence
-            vim:SendKeyEvent(true, Enum.KeyCode.BackSlash, false, game)  -- Press Backslash down
-            wait(0.1)
-            vim:SendKeyEvent(false, Enum.KeyCode.BackSlash, false, game)  -- Release Backslash
-            wait(0.1)
+            -- Try to select the ATM UI first
+            local atmUI = LocalPlayer.PlayerGui.HUD.Tabs.ATM
+            if atmUI then
+                -- Try to force selection to the amount box
+                local amountBox = atmUI:FindFirstChild("AmountBox")
+                if amountBox then
+                    GuiService.SelectedObject = amountBox
+                end
+            end
             
-            vim:SendKeyEvent(true, Enum.KeyCode.S, false, game)  -- Press S down
-            wait(0.1)
-            vim:SendKeyEvent(false, Enum.KeyCode.S, false, game)  -- Release S
-            wait(0.1)
+            wait(1)
             
-            vim:SendKeyEvent(true, Enum.KeyCode.S, false, game)  -- Press S down again
-            wait(0.1)
-            vim:SendKeyEvent(false, Enum.KeyCode.S, false, game)  -- Release S
-            wait(0.1)
-
-            vim:SendKeyEvent(true, Enum.KeyCode.Return, false, game)  -- Press Enter down
-            wait(0.1)
-            vim:SendKeyEvent(false, Enum.KeyCode.Return, false, game)  -- Release Enter
-            wait(0.1)
-
-            -- Press Backslash again
-            vim:SendKeyEvent(true, Enum.KeyCode.BackSlash, false, game)  -- Press Backslash down
-            wait(0.1)
-            vim:SendKeyEvent(false, Enum.KeyCode.BackSlash, false, game)  -- Release Backslash
+            -- Just press Enter to confirm
+            vim:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+            wait(0.3)
+            vim:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+            
+            -- Optionally clear the selection
+            GuiService.SelectedObject = nil
+            
+            wait(1)  -- Final delay before allowing next interaction
         end
         
         handleATMInteraction()
@@ -171,25 +168,48 @@ local function pressKey(keyCode)
     wait(0.05) -- Small delay between keys
 end
 
--- Spawn ATM key press loop
+-- Spawn ATM automation task
 task.spawn(function()
     while true do
         if hasEnoughCash() then
-            -- Press Backslash
-            wait (5)
-            pressKey(Enum.KeyCode.BackSlash)
+            print("=== Found ₩1,000,000 - Running ATM Interaction ===")
+            wait(10)  -- Wait 10 seconds before proceeding
             
-            -- Press S twice
-            pressKey(Enum.KeyCode.S)
-            pressKey(Enum.KeyCode.S)
+            -- Try to select the ATM UI Deposit button and amount box
+            local atmUI = LocalPlayer.PlayerGui.HUD.Tabs.ATM
+            if atmUI then
+                -- First select deposit button
+                local depositButton = atmUI:FindFirstChild("Deposit")
+                if depositButton then
+                    GuiService.SelectedObject = depositButton
+                    wait(0.5)  -- Wait for deposit selection
+                    
+                    -- Press Enter to select deposit
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                    wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                    wait(0.5)  -- Wait for amount box to be ready
+                    
+                    -- Then select amount box
+                    local amountBox = atmUI:FindFirstChild("AmountBox")
+                    if amountBox then
+                        GuiService.SelectedObject = amountBox
+                        wait(0.5)  -- Wait for amount box selection
+                        
+                        -- Press Enter again to confirm amount
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                        wait(0.1)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                    end
+                end
+            end
             
-            -- Press Enter
-            pressKey(Enum.KeyCode.Return)
+            -- Clear the selection
+            GuiService.SelectedObject = nil
             
-            -- Wait a bit before checking again
-            wait(5)
+            wait(1)  -- Wait before next check
         end
-        wait(0.1) -- Check money every 0.1 seconds
+        wait(0.1)  -- Check interval
     end
 end)
 
@@ -219,8 +239,6 @@ local function moveTowards(targetPosition, speed)
     
     return true
 end
-
--- Function to handle ATM interaction key presses
 
 -- Function to interact with ATM
 local function interactWithATM()
@@ -300,23 +318,3 @@ while true do
     
     wait(0.1)
 end
-
--- Function to check if we have ₩1,000,000 and handle ATM interaction
-
-
--- Main loop spawning both check functions
-task.spawn(function()
-    while true do
-        checkAndHandleATMInteraction()  -- Check for ATM interaction
-        if hasNoCurrentJob() then 
-            print("=== Starting Delivery Poster Check ===")
-            checkDeliveryPosters()
-            print("=== Finished Delivery Poster Check ===")
-        else
-            print("=== Handling Delivery Location ===")
-            handleDeliveryLocation()
-            print("=== Finished Handling Delivery ===")
-        end
-        wait(0.1)
-    end
-end)
